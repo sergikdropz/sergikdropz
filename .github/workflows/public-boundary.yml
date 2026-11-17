@@ -1,0 +1,41 @@
+name: Public boundary
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse private source in the public release record
+        run: |
+          set -euo pipefail
+          forbidden=0
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              web/*|knowledge/*|deploy/*|kb/*|mcp/*|mobile/*|aibleton/*|sergik_ml/*|maxforlive/*|frontend/*|remote_script/*)
+                echo "forbidden path: $path"
+                forbidden=1
+                ;;
+              *.sql|*.py|*.wav|*.aiff|*.flac|*.pem|*.p12|*.sqlite|*.db|*.zip)
+                echo "forbidden file: $path"
+                forbidden=1
+                ;;
+              .env|.env.*|*/.env|*/.env.*)
+                echo "forbidden env file: $path"
+                forbidden=1
+                ;;
+            esac
+          done < <(git ls-files)
+          if [ "$forbidden" -ne 0 ]; then
+            echo "This repository is release notes only."
+            exit 1
+          fi
+          echo "Public boundary holds."
